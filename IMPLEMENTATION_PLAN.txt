@@ -1,0 +1,240 @@
+AI-Changelog Implementation Plan
+=================================
+
+Project Structure
+-----------------
+
+ai-changelog/
+├── main.go
+├── cmd/
+│   ├── root.go
+│   └── generate.go
+├── internal/
+│   ├── git/
+│   │   └── git.go
+│   ├── ollama/
+│   │   └── client.go
+│   └── changelog/
+│       ├── grouper.go
+│       └── renderer.go
+├── go.mod
+├── go.sum
+├── .goreleaser.yaml
+└── README.md
+
+
+================================================================================
+PHASE 1: Foundation & Core MVP
+================================================================================
+
+SPRINT 1: Project Setup & Git Layer
+-----------------------------------
+
+| #  | Task                                                          | Test First (TDD)                                              | Commit Message                      |
+|----|---------------------------------------------------------------|---------------------------------------------------------------|-------------------------------------|
+| 1  | Initialize Go module                                          | N/A (setup)                                                   | chore: initialize go module         |
+| 2  | Create Commit struct with Hash, Subject, Author, Timestamp    | git_test.go: TestCommitStructFields                           | feat: add Commit struct             |
+| 3  | Implement ParseCommitLine to parse pipe-delimited git output  | git_test.go: TestParseCommitLine, TestParseCommitLineInvalid  | feat: implement commit line parser  |
+| 4  | Implement ExtractPrefix to detect conventional commit prefix  | git_test.go: TestExtractPrefix, TestExtractPrefixUnknown      | feat: implement prefix extraction   |
+| 5  | Create GitRunner interface for testability                    | git_test.go: TestGitRunnerInterface                           | feat: add GitRunner interface       |
+| 6  | Implement GetCommits to run git log and parse output          | git_test.go: TestGetCommits, TestGetCommitsEmpty              | feat: implement GetCommits          |
+| 7  | Handle git errors gracefully                                  | git_test.go: TestGetCommitsGitError, TestGetCommitsNotARepo   | feat: handle git errors             |
+
+
+SPRINT 2: Ollama Client Layer
+-----------------------------
+
+| #  | Task                                                          | Test First (TDD)                                              | Commit Message                      |
+|----|---------------------------------------------------------------|---------------------------------------------------------------|-------------------------------------|
+| 8  | Create OllamaClient interface                                 | ollama_test.go: TestOllamaClientInterface                     | feat: add OllamaClient interface    |
+| 9  | Create GenerateRequest and GenerateResponse structs           | ollama_test.go: TestRequestSerialization                      | feat: add Ollama request/response   |
+| 10 | Implement HealthCheck to verify Ollama is running             | ollama_test.go: TestHealthCheckSuccess, TestHealthCheckFail   | feat: implement Ollama health check |
+| 11 | Implement BuildPrompt for changelog generation                | ollama_test.go: TestBuildPrompt, TestBuildPromptEmpty         | feat: implement prompt builder      |
+| 12 | Implement Generate to call Ollama API                         | ollama_test.go: TestGenerateSuccess, TestGenerateTimeout      | feat: implement Ollama generate     |
+| 13 | Implement SummarizeCommits to batch process commits           | ollama_test.go: TestSummarizeCommits, TestSummarizeFallback   | feat: implement commit summarization|
+| 14 | Handle Ollama connection errors with fallback                 | ollama_test.go: TestOllamaFallbackBehavior                    | feat: add Ollama fallback behavior  |
+
+
+SPRINT 3: Grouper Layer
+-----------------------
+
+| #  | Task                                                          | Test First (TDD)                                              | Commit Message                      |
+|----|---------------------------------------------------------------|---------------------------------------------------------------|-------------------------------------|
+| 15 | Create ChangelogSection struct                                | grouper_test.go: TestChangelogSectionStruct                   | feat: add ChangelogSection struct   |
+| 16 | Define category constants and display names                   | grouper_test.go: TestCategoryDisplayNames                     | feat: add commit category defs      |
+| 17 | Implement GroupByCategory to categorize commits               | grouper_test.go: TestGroupByCategory, TestGroupByCategoryEmpty| feat: implement commit grouping     |
+| 18 | Implement SortByDate to order commits chronologically         | grouper_test.go: TestSortByDate                               | feat: implement commit sorting      |
+| 19 | Handle "Other" category for non-conventional commits          | grouper_test.go: TestGroupUnknownPrefix                       | feat: handle non-conventional commits|
+
+
+SPRINT 4: Renderer Layer
+------------------------
+
+| #  | Task                                                          | Test First (TDD)                                              | Commit Message                      |
+|----|---------------------------------------------------------------|---------------------------------------------------------------|-------------------------------------|
+| 20 | Create Renderer interface with Render method                  | renderer_test.go: TestRendererInterface                       | feat: add Renderer interface        |
+| 21 | Implement MarkdownRenderer                                    | renderer_test.go: TestMarkdownRendererBasic                   | feat: implement markdown renderer   |
+| 22 | Implement version header rendering                            | renderer_test.go: TestRenderVersionHeader                     | feat: render version headers        |
+| 23 | Implement section header rendering                            | renderer_test.go: TestRenderSectionHeaders                    | feat: render section headers        |
+| 24 | Implement commit list rendering                               | renderer_test.go: TestRenderCommitList                        | feat: render commit lists           |
+| 25 | Implement PlainTextRenderer                                   | renderer_test.go: TestPlainTextRenderer                       | feat: implement plain text renderer |
+| 26 | Handle empty sections (skip them)                             | renderer_test.go: TestRenderSkipsEmptySections                | feat: skip empty sections in output |
+
+
+SPRINT 5: CLI Layer
+-------------------
+
+| #  | Task                                                          | Test First (TDD)                                              | Commit Message                      |
+|----|---------------------------------------------------------------|---------------------------------------------------------------|-------------------------------------|
+| 27 | Set up Cobra root command                                     | cmd_test.go: TestRootCommandExists                            | feat: add cobra root command        |
+| 28 | Add --output flag                                             | cmd_test.go: TestOutputFlag                                   | feat: add output flag               |
+| 29 | Add --since flag                                              | cmd_test.go: TestSinceFlag                                    | feat: add since flag                |
+| 30 | Add --model flag                                              | cmd_test.go: TestModelFlag                                    | feat: add model flag                |
+| 31 | Add --format flag                                             | cmd_test.go: TestFormatFlag                                   | feat: add format flag               |
+| 32 | Add --no-ai flag                                              | cmd_test.go: TestNoAIFlag                                     | feat: add no-ai flag                |
+| 33 | Implement generate command orchestration                      | generate_test.go: TestGenerateCommand                         | feat: implement generate command    |
+| 34 | Implement file output writing                                 | generate_test.go: TestWriteToFile                             | feat: implement file output         |
+| 35 | Add Ollama startup check with user-friendly error             | generate_test.go: TestOllamaStartupCheck                      | feat: add Ollama startup validation |
+
+
+================================================================================
+PHASE 2: Polish
+================================================================================
+
+SPRINT 6: Enhanced UX
+---------------------
+
+| #  | Task                                                          | Test First (TDD)                                              | Commit Message                      |
+|----|---------------------------------------------------------------|---------------------------------------------------------------|-------------------------------------|
+| 36 | Implement auto-detect latest git tag                          | git_test.go: TestGetLatestTag, TestGetLatestTagNoTags         | feat: auto-detect latest git tag    |
+| 37 | Add colorized terminal output                                 | renderer_test.go: TestColorizedOutput                         | feat: add colorized terminal output |
+| 38 | Add --quiet flag                                              | cmd_test.go: TestQuietFlag                                    | feat: add quiet mode                |
+| 39 | Add --verbose flag                                            | cmd_test.go: TestVerboseFlag                                  | feat: add verbose mode              |
+| 40 | Implement batch prompt optimization                           | ollama_test.go: TestBatchPromptOptimization                   | feat: optimize batch prompts        |
+
+
+================================================================================
+PHASE 3: Advanced Features
+================================================================================
+
+SPRINT 7: Configuration & Filtering
+-----------------------------------
+
+| #  | Task                                                          | Test First (TDD)                                              | Commit Message                      |
+|----|---------------------------------------------------------------|---------------------------------------------------------------|-------------------------------------|
+| 41 | Add config file parsing (.ai-changelog.yaml)                  | config_test.go: TestParseConfigFile                           | feat: add config file support       |
+| 42 | Add custom prefix support via config                          | config_test.go: TestCustomPrefixes                            | feat: add custom commit prefixes    |
+| 43 | Add --from and --to date filters                              | cmd_test.go: TestDateRangeFlags                               | feat: add date range filtering      |
+| 44 | Implement date range filtering in git layer                   | git_test.go: TestGetCommitsDateRange                          | feat: implement date range filter   |
+| 45 | Add --dry-run flag                                            | cmd_test.go: TestDryRunFlag                                   | feat: add dry run mode              |
+
+
+================================================================================
+PHASE 4: Distribution
+================================================================================
+
+SPRINT 8: Release Pipeline
+--------------------------
+
+| #  | Task                                                          | Test First (TDD)                                              | Commit Message                      |
+|----|---------------------------------------------------------------|---------------------------------------------------------------|-------------------------------------|
+| 46 | Configure GoReleaser for multi-platform builds                | N/A (config)                                                  | chore: add goreleaser config        |
+| 47 | Create Homebrew tap repository                                | N/A (setup)                                                   | chore: create homebrew tap          |
+| 48 | Add GitHub Actions workflow for releases                      | N/A (CI)                                                      | ci: add release workflow            |
+| 49 | Write README with installation instructions                   | N/A (docs)                                                    | docs: add installation guide        |
+
+
+================================================================================
+TDD WORKFLOW PER TASK
+================================================================================
+
+For each implementation task:
+
+1. Write failing test → git commit "test: add test for X"
+2. Write minimal implementation → git commit "feat: implement X"
+3. Refactor if needed → git commit "refactor: clean up X"
+
+
+================================================================================
+KEY INTERFACES (Dependency Injection for Testability)
+================================================================================
+
+internal/git/git.go:
+
+    type GitRunner interface {
+        Run(args ...string) (string, error)
+    }
+
+    type CommitReader interface {
+        GetCommits(since string) ([]Commit, error)
+        GetLatestTag() (string, error)
+    }
+
+internal/ollama/client.go:
+
+    type OllamaClient interface {
+        HealthCheck() error
+        SummarizeCommits(commits []git.Commit, model string) ([]string, error)
+    }
+
+internal/changelog/renderer.go:
+
+    type Renderer interface {
+        Render(sections []ChangelogSection, version string) string
+    }
+
+
+================================================================================
+TEST COVERAGE STRATEGY
+================================================================================
+
+| Layer    | Unit Tests              | Integration Tests                |
+|----------|-------------------------|----------------------------------|
+| Git      | Mock GitRunner          | Real git repo in temp dir        |
+| Ollama   | Mock HTTP server        | Optional: real Ollama            |
+| Grouper  | Pure functions          | N/A                              |
+| Renderer | Pure functions          | N/A                              |
+| CLI      | Mock all dependencies   | E2E with real git repo           |
+
+
+================================================================================
+CLEAN CODE PRINCIPLES APPLIED
+================================================================================
+
+1. Single Responsibility: Each file handles one concern
+2. Dependency Injection: All external deps passed via interfaces
+3. Small Functions: Max 20-30 lines per function
+4. Meaningful Names: No abbreviations, self-documenting code
+5. No Comments: Code should be self-explanatory
+6. Error Handling: Explicit error returns, no panics
+7. Immutability: Prefer returning new values over mutation
+
+
+================================================================================
+ESTIMATED COMMIT COUNT
+================================================================================
+
+- Phase 1 (MVP):          ~35 commits
+- Phase 2 (Polish):       ~10 commits
+- Phase 3 (Advanced):     ~10 commits
+- Phase 4 (Distribution): ~5 commits
+
+Total: ~60 small, focused commits
+
+
+================================================================================
+SUPPORTED COMMIT CATEGORIES
+================================================================================
+
+| Prefix   | Changelog Section  | Example                          |
+|----------|--------------------|----------------------------------|
+| feat     | New Features       | feat: add user authentication    |
+| fix      | Bug Fixes          | fix: resolve login timeout       |
+| docs     | Documentation      | docs: update README              |
+| perf     | Performance        | perf: optimize DB queries        |
+| refactor | Internal Changes   | refactor: simplify auth flow     |
+| chore    | Maintenance        | chore: update dependencies       |
+| test     | Testing            | test: add unit tests for auth    |
+| style    | Style              | style: fix indentation           |
+
+Commits that do not match any prefix are grouped under an "Other" section.

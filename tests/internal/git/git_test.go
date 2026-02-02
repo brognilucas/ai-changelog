@@ -1,14 +1,16 @@
-package git
+package git_test
 
 import (
 	"testing"
 	"time"
+
+	"github.com/lucasbrogni/ai-changelog/internal/git"
 )
 
 func TestCommitStructFields(t *testing.T) {
 	timestamp := time.Now()
 
-	commit := Commit{
+	commit := git.Commit{
 		Hash:      "abc123",
 		Subject:   "feat: add new feature",
 		Author:    "John Doe",
@@ -40,7 +42,7 @@ func TestCommitStructFields(t *testing.T) {
 func TestParseCommitLine(t *testing.T) {
 	line := "abc123def456|feat: add new feature|John Doe|1706745600"
 
-	commit, err := ParseCommitLine(line)
+	commit, err := git.ParseCommitLine(line)
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -76,7 +78,7 @@ func TestParseCommitLineInvalidFormat(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := ParseCommitLine(tt.line)
+			_, err := git.ParseCommitLine(tt.line)
 			if err == nil {
 				t.Errorf("expected error for line '%s', got nil", tt.line)
 			}
@@ -87,7 +89,7 @@ func TestParseCommitLineInvalidFormat(t *testing.T) {
 func TestParseCommitLineInvalidTimestamp(t *testing.T) {
 	line := "abc123|feat: something|John Doe|not-a-number"
 
-	_, err := ParseCommitLine(line)
+	_, err := git.ParseCommitLine(line)
 
 	if err == nil {
 		t.Error("expected error for invalid timestamp, got nil")
