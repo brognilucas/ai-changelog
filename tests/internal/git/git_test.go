@@ -95,3 +95,52 @@ func TestParseCommitLineInvalidTimestamp(t *testing.T) {
 		t.Error("expected error for invalid timestamp, got nil")
 	}
 }
+
+func TestExtractPrefix(t *testing.T) {
+	tests := []struct {
+		subject  string
+		expected string
+	}{
+		{"feat: add new feature", "feat"},
+		{"fix: resolve bug", "fix"},
+		{"docs: update readme", "docs"},
+		{"chore: update dependencies", "chore"},
+		{"refactor: simplify code", "refactor"},
+		{"test: add unit tests", "test"},
+		{"style: fix formatting", "style"},
+		{"perf: improve performance", "perf"},
+		{"feat(scope): scoped feature", "feat"},
+		{"fix(auth): fix login", "fix"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.subject, func(t *testing.T) {
+			result := git.ExtractPrefix(tt.subject)
+			if result != tt.expected {
+				t.Errorf("ExtractPrefix(%q) = %q, want %q", tt.subject, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestExtractPrefixUnknown(t *testing.T) {
+	tests := []struct {
+		name    string
+		subject string
+	}{
+		{"no colon", "update readme"},
+		{"unknown prefix", "unknown: something"},
+		{"empty string", ""},
+		{"just colon", ":"},
+		{"space before colon", "feat : something"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := git.ExtractPrefix(tt.subject)
+			if result != "other" {
+				t.Errorf("ExtractPrefix(%q) = %q, want 'other'", tt.subject, result)
+			}
+		})
+	}
+}

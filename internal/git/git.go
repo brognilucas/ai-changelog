@@ -15,6 +15,17 @@ type Commit struct {
 	Prefix    string
 }
 
+var validPrefixes = map[string]bool{
+	"feat":     true,
+	"fix":      true,
+	"docs":     true,
+	"chore":    true,
+	"refactor": true,
+	"test":     true,
+	"style":    true,
+	"perf":     true,
+}
+
 func ParseCommitLine(line string) (Commit, error) {
 	parts := strings.Split(line, "|")
 	if len(parts) != 4 {
@@ -32,4 +43,24 @@ func ParseCommitLine(line string) (Commit, error) {
 		Author:    parts[2],
 		Timestamp: time.Unix(timestamp, 0),
 	}, nil
+}
+
+func ExtractPrefix(subject string) string {
+	colonIndex := strings.Index(subject, ":")
+	if colonIndex == -1 {
+		return "other"
+	}
+
+	prefix := subject[:colonIndex]
+
+	parenIndex := strings.Index(prefix, "(")
+	if parenIndex != -1 {
+		prefix = prefix[:parenIndex]
+	}
+
+	if validPrefixes[prefix] {
+		return prefix
+	}
+
+	return "other"
 }
