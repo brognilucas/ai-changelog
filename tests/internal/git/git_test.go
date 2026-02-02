@@ -1,6 +1,7 @@
 package git_test
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -262,4 +263,48 @@ func (m *mockRunnerWithArgs) Run(args ...string) (string, error) {
 		m.onRun(args...)
 	}
 	return m.output, m.err
+}
+
+func TestGetCommitsGitError(t *testing.T) {
+	gitError := errors.New("fatal: not a git repository")
+	runner := &mockRunner{output: "", err: gitError}
+
+	reader := git.NewCommitReader(runner)
+	_, err := reader.GetCommits("")
+
+	if err == nil {
+		t.Error("expected error, got nil")
+	}
+
+	if !errors.Is(err, gitError) {
+		t.Errorf("expected git error, got %v", err)
+	}
+}
+
+func TestGetCommitsNotARepo(t *testing.T) {
+	gitError := errors.New("fatal: not a git repository (or any of the parent directories): .git")
+	runner := &mockRunner{output: "", err: gitError}
+
+	reader := git.NewCommitReader(runner)
+	_, err := reader.GetCommits("")
+
+	if err == nil {
+		t.Error("expected error for not a repo, got nil")
+	}
+}
+
+func TestGetCommitsSkipsInvalidLines(t *testing.T) {
+	mockOutput := "abc123|feat: valid commit|John Doe|1706745600\ninvalid line without pipes\ndef456|fix: another valid|Jane Doe|1706746600"
+	runner := &mockRunner{output: mockOutput, err: nil}
+
+	reader := git.NewCommitReader(runner)
+	commits, err := reader.GetCommits("")
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(commits) != 2 {
+		t.Errorf("expected 2 valid commits, got %d", len(commits))
+	}
 }
