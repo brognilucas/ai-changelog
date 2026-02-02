@@ -171,3 +171,95 @@ func TestRunnerInterface(t *testing.T) {
 func TestDefaultRunnerImplementsInterface(t *testing.T) {
 	var _ git.Runner = &git.DefaultRunner{}
 }
+
+func TestGetCommits(t *testing.T) {
+	mockOutput := "abc123|feat: add feature|John Doe|1706745600\ndef456|fix: fix bug|Jane Doe|1706746600"
+	runner := &mockRunner{output: mockOutput, err: nil}
+
+	reader := git.NewCommitReader(runner)
+	commits, err := reader.GetCommits("")
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(commits) != 2 {
+		t.Fatalf("expected 2 commits, got %d", len(commits))
+	}
+
+	if commits[0].Hash != "abc123" {
+		t.Errorf("expected first commit hash 'abc123', got '%s'", commits[0].Hash)
+	}
+
+	if commits[0].Prefix != "feat" {
+		t.Errorf("expected first commit prefix 'feat', got '%s'", commits[0].Prefix)
+	}
+
+	if commits[1].Hash != "def456" {
+		t.Errorf("expected second commit hash 'def456', got '%s'", commits[1].Hash)
+	}
+
+	if commits[1].Prefix != "fix" {
+		t.Errorf("expected second commit prefix 'fix', got '%s'", commits[1].Prefix)
+	}
+}
+
+func TestGetCommitsEmpty(t *testing.T) {
+	runner := &mockRunner{output: "", err: nil}
+
+	reader := git.NewCommitReader(runner)
+	commits, err := reader.GetCommits("")
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(commits) != 0 {
+		t.Errorf("expected 0 commits, got %d", len(commits))
+	}
+}
+
+func TestGetCommitsSinceTag(t *testing.T) {
+	mockOutput := "abc123|feat: add feature|John Doe|1706745600"
+	argsReceived := []string{}
+
+	customRunner := &mockRunnerWithArgs{
+		output: mockOutput,
+		err:    nil,
+		onRun: func(args ...string) {
+			argsReceived = args
+		},
+	}
+
+	reader := git.NewCommitReader(customRunner)
+	_, err := reader.GetCommits("v1.0.0")
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	found := false
+	for _, arg := range argsReceived {
+		if arg == "v1.0.0..HEAD" {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		t.Errorf("expected 'v1.0.0..HEAD' in git args, got %v", argsReceived)
+	}
+}
+
+type mockRunnerWithArgs struct {
+	output string
+	err    error
+	onRun  func(args ...string)
+}
+
+func (m *mockRunnerWithArgs) Run(args ...string) (string, error) {
+	if m.onRun != nil {
+		m.onRun(args...)
+	}
+	return m.output, m.err
+}

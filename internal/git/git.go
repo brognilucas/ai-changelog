@@ -80,3 +80,47 @@ func ExtractPrefix(subject string) string {
 
 	return "other"
 }
+
+type CommitReader struct {
+	runner Runner
+}
+
+func NewCommitReader(runner Runner) *CommitReader {
+	return &CommitReader{runner: runner}
+}
+
+func (r *CommitReader) GetCommits(since string) ([]Commit, error) {
+	args := []string{"log", "--format=%H|%s|%an|%ct"}
+
+	if since != "" {
+		args = append(args, since+"..HEAD")
+	}
+
+	output, err := r.runner.Run(args...)
+	if err != nil {
+		return nil, err
+	}
+
+	if strings.TrimSpace(output) == "" {
+		return []Commit{}, nil
+	}
+
+	lines := strings.Split(strings.TrimSpace(output), "\n")
+	commits := make([]Commit, 0, len(lines))
+
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+
+		commit, err := ParseCommitLine(line)
+		if err != nil {
+			continue
+		}
+
+		commit.Prefix = ExtractPrefix(commit.Subject)
+		commits = append(commits, commit)
+	}
+
+	return commits, nil
+}
