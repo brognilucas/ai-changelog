@@ -144,3 +144,30 @@ func TestExtractPrefixUnknown(t *testing.T) {
 		})
 	}
 }
+
+type mockRunner struct {
+	output string
+	err    error
+}
+
+func (m *mockRunner) Run(args ...string) (string, error) {
+	return m.output, m.err
+}
+
+func TestRunnerInterface(t *testing.T) {
+	var runner git.Runner = &mockRunner{output: "test output", err: nil}
+
+	output, err := runner.Run("log")
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if output != "test output" {
+		t.Errorf("expected output 'test output', got '%s'", output)
+	}
+}
+
+func TestDefaultRunnerImplementsInterface(t *testing.T) {
+	var _ git.Runner = &git.DefaultRunner{}
+}

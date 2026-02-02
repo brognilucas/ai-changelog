@@ -2,10 +2,26 @@ package git
 
 import (
 	"errors"
+	"os/exec"
 	"strconv"
 	"strings"
 	"time"
 )
+
+type Runner interface {
+	Run(args ...string) (string, error)
+}
+
+type DefaultRunner struct{}
+
+func (r *DefaultRunner) Run(args ...string) (string, error) {
+	cmd := exec.Command("git", args...)
+	output, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	return string(output), nil
+}
 
 type Commit struct {
 	Hash      string
