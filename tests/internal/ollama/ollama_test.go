@@ -2,6 +2,8 @@ package ollama_test
 
 import (
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/lucasbrogni/ai-changelog/internal/git"
@@ -82,5 +84,28 @@ func TestResponseSerialization(t *testing.T) {
 
 	if response.Done != true {
 		t.Errorf("expected Done true, got %v", response.Done)
+	}
+}
+
+func TestHealthCheckSuccess(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	client := ollama.NewDefaultClient(server.URL)
+	err := client.HealthCheck()
+
+	if err != nil {
+		t.Errorf("expected no error, got %v", err)
+	}
+}
+
+func TestHealthCheckFail(t *testing.T) {
+	client := ollama.NewDefaultClient("http://localhost:99999")
+	err := client.HealthCheck()
+
+	if err == nil {
+		t.Error("expected error for unreachable server, got nil")
 	}
 }
