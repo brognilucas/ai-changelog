@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/lucasbrogni/ai-changelog/internal/git"
@@ -107,5 +108,34 @@ func TestHealthCheckFail(t *testing.T) {
 
 	if err == nil {
 		t.Error("expected error for unreachable server, got nil")
+	}
+}
+
+func TestBuildPrompt(t *testing.T) {
+	commits := []git.Commit{
+		{Hash: "abc123", Subject: "feat: add user authentication", Author: "dev"},
+		{Hash: "def456", Subject: "fix: resolve login timeout", Author: "dev"},
+	}
+
+	prompt := ollama.BuildPrompt(commits)
+
+	if prompt == "" {
+		t.Error("expected non-empty prompt")
+	}
+	if !strings.Contains(prompt, "feat: add user authentication") {
+		t.Error("prompt should contain commit subjects")
+	}
+	if !strings.Contains(prompt, "fix: resolve login timeout") {
+		t.Error("prompt should contain all commit subjects")
+	}
+}
+
+func TestBuildPromptEmpty(t *testing.T) {
+	commits := []git.Commit{}
+
+	prompt := ollama.BuildPrompt(commits)
+
+	if prompt != "" {
+		t.Errorf("expected empty string for empty commits, got %q", prompt)
 	}
 }
