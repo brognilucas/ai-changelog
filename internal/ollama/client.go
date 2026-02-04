@@ -1,9 +1,12 @@
 package ollama
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/lucasbrogni/ai-changelog/internal/git"
 )
@@ -30,10 +33,19 @@ type DefaultClient struct {
 	httpClient *http.Client
 }
 
+const defaultTimeout = 30 * time.Second
+
 func NewDefaultClient(baseURL string) *DefaultClient {
 	return &DefaultClient{
 		baseURL:    baseURL,
-		httpClient: &http.Client{},
+		httpClient: &http.Client{Timeout: defaultTimeout},
+	}
+}
+
+func NewDefaultClientWithTimeout(baseURL string, timeout time.Duration) *DefaultClient {
+	return &DefaultClient{
+		baseURL:    baseURL,
+		httpClient: &http.Client{Timeout: timeout},
 	}
 }
 
@@ -53,6 +65,36 @@ func (c *DefaultClient) HealthCheck() error {
 
 func (c *DefaultClient) SummarizeCommits(commits []git.Commit, model string) ([]string, error) {
 	return nil, nil
+}
+
+func (c *DefaultClient) Generate(model string, prompt string) (string, error) {
+	request := GenerateRequest{
+		Model:  model,
+		Prompt: prompt,
+		Stream: false,
+	}
+
+	body, err := json.Marshal(request)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	resp, err := c.httpClient.Post(c.baseURL+"/api/generate", "application/json", bytes.NewReader(body))
+	if err != nil {
+		return "", fmt.Errorf("generate request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("ollama returned status %d", resp.StatusCode)
+	}
+
+	var response GenerateResponse
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return "", fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return response.Response, nil
 }
 
 func BuildPrompt(commits []git.Commit) string {

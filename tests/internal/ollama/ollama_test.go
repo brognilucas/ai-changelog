@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/lucasbrogni/ai-changelog/internal/git"
 	"github.com/lucasbrogni/ai-changelog/internal/ollama"
@@ -137,5 +138,67 @@ func TestBuildPromptEmpty(t *testing.T) {
 
 	if prompt != "" {
 		t.Errorf("expected empty string for empty commits, got %q", prompt)
+	}
+}
+
+func TestGenerateSuccess(t *testing.T) {
+	expectedResponse := "## Changelog\n- Added user authentication"
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/generate" {
+			t.Errorf("expected path /api/generate, got %s", r.URL.Path)
+		}
+
+		if r.Method != http.MethodPost {
+			t.Errorf("expected POST method, got %s", r.Method)
+		}
+
+		var req ollama.GenerateRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			t.Fatalf("failed to decode request: %v", err)
+		}
+
+		if req.Model != "llama3" {
+			t.Errorf("expected model llama3, got %s", req.Model)
+		}
+
+		if req.Stream != false {
+			t.Errorf("expected stream false, got %v", req.Stream)
+		}
+
+		response := ollama.GenerateResponse{
+			Model:    "llama3",
+			Response: expectedResponse,
+			Done:     true,
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+	}))
+	defer server.Close()
+
+	client := ollama.NewDefaultClient(server.URL)
+	result, err := client.Generate("llama3", "test prompt")
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if result != expectedResponse {
+		t.Errorf("expected response %q, got %q", expectedResponse, result)
+	}
+}
+
+func TestGenerateTimeout(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(200 * time.Millisecond)
+	}))
+	defer server.Close()
+
+	client := ollama.NewDefaultClientWithTimeout(server.URL, 50*time.Millisecond)
+	_, err := client.Generate("llama3", "test prompt")
+
+	if err == nil {
+		t.Error("expected timeout error, got nil")
 	}
 }
