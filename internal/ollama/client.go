@@ -63,8 +63,36 @@ func (c *DefaultClient) HealthCheck() error {
 	return nil
 }
 
+const defaultBatchSize = 10
+
 func (c *DefaultClient) SummarizeCommits(commits []git.Commit, model string) ([]string, error) {
-	return nil, nil
+	if len(commits) == 0 {
+		return []string{}, nil
+	}
+
+	var summaries []string
+
+	for i := 0; i < len(commits); i += defaultBatchSize {
+		end := i + defaultBatchSize
+		if end > len(commits) {
+			end = len(commits)
+		}
+
+		batch := commits[i:end]
+		prompt := BuildPrompt(batch)
+
+		response, err := c.Generate(model, prompt)
+		if err != nil {
+			for _, commit := range batch {
+				summaries = append(summaries, commit.Subject)
+			}
+			continue
+		}
+
+		summaries = append(summaries, response)
+	}
+
+	return summaries, nil
 }
 
 func (c *DefaultClient) Generate(model string, prompt string) (string, error) {

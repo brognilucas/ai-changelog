@@ -202,3 +202,209 @@ func TestGenerateTimeout(t *testing.T) {
 		t.Error("expected timeout error, got nil")
 	}
 }
+
+func TestSummarizeCommits(t *testing.T) {
+	callCount := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/generate" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		callCount++
+		response := ollama.GenerateResponse{
+			Model:    "llama3",
+			Response: "- Improved user experience with new feature",
+			Done:     true,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+	}))
+	defer server.Close()
+
+	commits := []git.Commit{
+		{Hash: "abc123", Subject: "feat: add user authentication", Author: "dev", Timestamp: time.Now()},
+		{Hash: "def456", Subject: "fix: resolve login timeout", Author: "dev", Timestamp: time.Now()},
+		{Hash: "ghi789", Subject: "docs: update README", Author: "dev", Timestamp: time.Now()},
+	}
+
+	client := ollama.NewDefaultClient(server.URL)
+	summaries, err := client.SummarizeCommits(commits, "llama3")
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if len(summaries) == 0 {
+		t.Error("expected at least one summary")
+	}
+
+	if callCount == 0 {
+		t.Error("expected at least one API call to Ollama")
+	}
+}
+
+func TestSummarizeCommitsEmpty(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	client := ollama.NewDefaultClient(server.URL)
+	summaries, err := client.SummarizeCommits([]git.Commit{}, "llama3")
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if len(summaries) != 0 {
+		t.Errorf("expected empty summaries for empty commits, got %d", len(summaries))
+	}
+}
+
+func TestSummarizeFallback(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/generate" {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	commits := []git.Commit{
+		{Hash: "abc123", Subject: "feat: add user authentication", Author: "dev", Timestamp: time.Now()},
+		{Hash: "def456", Subject: "fix: resolve login timeout", Author: "dev", Timestamp: time.Now()},
+	}
+
+	client := ollama.NewDefaultClient(server.URL)
+	summaries, err := client.SummarizeCommits(commits, "llama3")
+
+	if err != nil {
+		t.Fatalf("expected no error on fallback, got %v", err)
+	}
+
+	if len(summaries) != len(commits) {
+		t.Errorf("expected %d fallback summaries, got %d", len(commits), len(summaries))
+	}
+
+	for i, summary := range summaries {
+		if summary != commits[i].Subject {
+			t.Errorf("expected fallback summary %q, got %q", commits[i].Subject, summary)
+		}
+	}
+}
+
+func TestOllamaFallbackBehavior(t *testing.T) {
+	t.Run("connection refused falls back gracefully", func(t *testing.T) {
+		client := ollama.NewDefaultClient("http://localhost:59999")
+
+		commits := []git.Commit{
+			{Hash: "abc123", Subject: "feat: add new feature", Author: "dev", Timestamp: time.Now()},
+			{Hash: "def456", Subject: "fix: bug fix", Author: "dev", Timestamp: time.Now()},
+		}
+
+		summaries, err := client.SummarizeCommits(commits, "llama3")
+
+		if err != nil {
+			t.Fatalf("expected graceful fallback without error, got %v", err)
+		}
+
+		if len(summaries) != len(commits) {
+			t.Errorf("expected %d fallback summaries, got %d", len(commits), len(summaries))
+		}
+
+		for i, summary := range summaries {
+			if summary != commits[i].Subject {
+				t.Errorf("expected fallback to subject %q, got %q", commits[i].Subject, summary)
+			}
+		}
+	})
+
+	t.Run("timeout during generation falls back gracefully", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/api/generate" {
+				time.Sleep(200 * time.Millisecond)
+			}
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer server.Close()
+
+		client := ollama.NewDefaultClientWithTimeout(server.URL, 50*time.Millisecond)
+
+		commits := []git.Commit{
+			{Hash: "abc123", Subject: "feat: add timeout test", Author: "dev", Timestamp: time.Now()},
+		}
+
+		summaries, err := client.SummarizeCommits(commits, "llama3")
+
+		if err != nil {
+			t.Fatalf("expected graceful fallback on timeout, got %v", err)
+		}
+
+		if len(summaries) != len(commits) {
+			t.Errorf("expected %d fallback summaries, got %d", len(commits), len(summaries))
+		}
+
+		if summaries[0] != commits[0].Subject {
+			t.Errorf("expected fallback to subject %q, got %q", commits[0].Subject, summaries[0])
+		}
+	})
+
+	t.Run("partial batch failures preserve successful summaries", func(t *testing.T) {
+		callCount := 0
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/api/generate" {
+				callCount++
+				if callCount == 1 {
+					response := ollama.GenerateResponse{
+						Model:    "llama3",
+						Response: "AI generated summary for batch 1",
+						Done:     true,
+					}
+					w.Header().Set("Content-Type", "application/json")
+					json.NewEncoder(w).Encode(response)
+					return
+				}
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer server.Close()
+
+		commits := make([]git.Commit, 15)
+		for i := 0; i < 15; i++ {
+			commits[i] = git.Commit{
+				Hash:      "hash" + string(rune('a'+i)),
+				Subject:   "commit " + string(rune('A'+i)),
+				Author:    "dev",
+				Timestamp: time.Now(),
+			}
+		}
+
+		client := ollama.NewDefaultClient(server.URL)
+		summaries, err := client.SummarizeCommits(commits, "llama3")
+
+		if err != nil {
+			t.Fatalf("expected no error on partial failure, got %v", err)
+		}
+
+		expectedLen := 6
+		if len(summaries) != expectedLen {
+			t.Fatalf("expected %d summaries (1 AI + 5 fallback), got %d", expectedLen, len(summaries))
+		}
+
+		if summaries[0] != "AI generated summary for batch 1" {
+			t.Errorf("expected AI summary for first batch, got %q", summaries[0])
+		}
+
+		for i := 1; i < len(summaries); i++ {
+			commitIndex := 10 + (i - 1)
+			expectedSubject := commits[commitIndex].Subject
+			if summaries[i] != expectedSubject {
+				t.Errorf("expected fallback subject %q for summaries[%d], got %q", expectedSubject, i, summaries[i])
+			}
+		}
+	})
+}
