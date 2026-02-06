@@ -2,6 +2,8 @@ package cmd_test
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -82,5 +84,43 @@ func TestGenerateCommand(t *testing.T) {
 
 	if !bytes.Contains(output.Bytes(), []byte("Bug Fixes")) {
 		t.Errorf("expected output to contain 'Bug Fixes', got:\n%s", result)
+	}
+}
+
+func TestWriteToFile(t *testing.T) {
+	baseTime := time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC)
+
+	commitReader := &mockCommitReader{
+		commits: []git.Commit{
+			{Hash: "abc1234def", Subject: "feat: add login", Author: "Alice", Timestamp: baseTime, Prefix: "feat"},
+		},
+	}
+
+	ollamaClient := &mockOllamaClient{healthy: true}
+
+	deps := cmd.GenerateDeps{
+		CommitReader:  commitReader,
+		OllamaClient:  ollamaClient,
+	}
+
+	tmpDir := t.TempDir()
+	outputPath := filepath.Join(tmpDir, "CHANGELOG.md")
+
+	err := cmd.WriteToFile(deps, "markdown", "", outputPath)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	content, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatalf("failed to read output file: %v", err)
+	}
+
+	if len(content) == 0 {
+		t.Error("expected non-empty file content")
+	}
+
+	if !bytes.Contains(content, []byte("New Features")) {
+		t.Errorf("expected file to contain 'New Features', got:\n%s", string(content))
 	}
 }
