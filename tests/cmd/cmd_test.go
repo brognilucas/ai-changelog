@@ -38,3 +38,20 @@ func TestOutputFlag(t *testing.T) {
 		t.Errorf("expected --output shorthand to be 'o', got %q", flag.Shorthand)
 	}
 }
+
+func TestSinceFlag(t *testing.T) {
+	rootCmd := cmd.NewRootCommand()
+
+	flag := rootCmd.PersistentFlags().Lookup("since")
+	if flag == nil {
+		t.Fatal("expected --since flag to exist")
+	}
+
+	if flag.DefValue != "" {
+		t.Errorf("expected --since default to be empty, got %q", flag.DefValue)
+	}
+
+	if flag.Shorthand != "s" {
+		t.Errorf("expected --since shorthand to be 's', got %q", flag.Shorthand)
+	}
+}
