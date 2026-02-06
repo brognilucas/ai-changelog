@@ -160,3 +160,67 @@ func TestRenderCommitList(t *testing.T) {
 		})
 	}
 }
+
+func TestPlainTextRenderer(t *testing.T) {
+	var _ changelog.Renderer = &changelog.PlainTextRenderer{}
+
+	baseTime := time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC)
+	sections := []changelog.ChangelogSection{
+		{
+			Title: "New Features",
+			Commits: []git.Commit{
+				{Hash: "abc1234def", Subject: "feat: add login", Author: "Alice", Timestamp: baseTime, Prefix: "feat"},
+				{Hash: "ghi789jklm", Subject: "feat: add logout", Author: "Alice", Timestamp: baseTime.Add(time.Hour), Prefix: "feat"},
+			},
+		},
+		{
+			Title: "Bug Fixes",
+			Commits: []git.Commit{
+				{Hash: "def456ghij", Subject: "fix: resolve crash", Author: "Bob", Timestamp: baseTime, Prefix: "fix"},
+			},
+		},
+	}
+
+	renderer := &changelog.PlainTextRenderer{}
+
+	t.Run("contains uppercase version header", func(t *testing.T) {
+		result := renderer.Render(sections, "v1.0.0")
+		if !strings.Contains(result, "CHANGELOG v1.0.0") {
+			t.Errorf("expected 'CHANGELOG v1.0.0' in output, got:\n%s", result)
+		}
+	})
+
+	t.Run("contains underline", func(t *testing.T) {
+		result := renderer.Render(sections, "v1.0.0")
+		if !strings.Contains(result, "================") {
+			t.Errorf("expected underline in output, got:\n%s", result)
+		}
+	})
+
+	t.Run("contains uppercase section titles", func(t *testing.T) {
+		result := renderer.Render(sections, "v1.0.0")
+		if !strings.Contains(result, "NEW FEATURES") {
+			t.Errorf("expected 'NEW FEATURES' in output, got:\n%s", result)
+		}
+		if !strings.Contains(result, "BUG FIXES") {
+			t.Errorf("expected 'BUG FIXES' in output, got:\n%s", result)
+		}
+	})
+
+	t.Run("contains indented commit lines", func(t *testing.T) {
+		result := renderer.Render(sections, "v1.0.0")
+		if !strings.Contains(result, "  * add login (abc1234)") {
+			t.Errorf("expected indented commit line in output, got:\n%s", result)
+		}
+		if !strings.Contains(result, "  * resolve crash (def456g)") {
+			t.Errorf("expected indented commit line in output, got:\n%s", result)
+		}
+	})
+
+	t.Run("version header without version", func(t *testing.T) {
+		result := renderer.Render(nil, "")
+		if !strings.HasPrefix(result, "CHANGELOG\n") {
+			t.Errorf("expected output to start with 'CHANGELOG', got:\n%s", result)
+		}
+	})
+}
