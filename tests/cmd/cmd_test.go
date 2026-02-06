@@ -72,3 +72,20 @@ func TestModelFlag(t *testing.T) {
 		t.Errorf("expected --model shorthand to be 'm', got %q", flag.Shorthand)
 	}
 }
+
+func TestFormatFlag(t *testing.T) {
+	rootCmd := cmd.NewRootCommand()
+
+	flag := rootCmd.PersistentFlags().Lookup("format")
+	if flag == nil {
+		t.Fatal("expected --format flag to exist")
+	}
+
+	if flag.DefValue != "markdown" {
+		t.Errorf("expected --format default to be 'markdown', got %q", flag.DefValue)
+	}
+
+	if flag.Shorthand != "f" {
+		t.Errorf("expected --format shorthand to be 'f', got %q", flag.Shorthand)
+	}
+}
