@@ -64,8 +64,8 @@ func TestModelFlag(t *testing.T) {
 		t.Fatal("expected --model flag to exist")
 	}
 
-	if flag.DefValue != "tinyllama" {
-		t.Errorf("expected --model default to be 'tinyllama', got %q", flag.DefValue)
+	if flag.DefValue != "llama3.2" {
+		t.Errorf("expected --model default to be 'llama3.2', got %q", flag.DefValue)
 	}
 
 	if flag.Shorthand != "m" {
