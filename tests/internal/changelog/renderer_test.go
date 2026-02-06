@@ -224,3 +224,85 @@ func TestPlainTextRenderer(t *testing.T) {
 		}
 	})
 }
+
+func TestRenderSkipsEmptySections(t *testing.T) {
+	baseTime := time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC)
+	sections := []changelog.ChangelogSection{
+		{
+			Title: "New Features",
+			Commits: []git.Commit{
+				{Hash: "abc1234def", Subject: "feat: add login", Author: "Alice", Timestamp: baseTime, Prefix: "feat"},
+			},
+		},
+		{
+			Title:   "Documentation",
+			Commits: []git.Commit{},
+		},
+		{
+			Title:   "Bug Fixes",
+			Commits: nil,
+		},
+		{
+			Title: "Maintenance",
+			Commits: []git.Commit{
+				{Hash: "def4567ghi", Subject: "chore: update deps", Author: "Bob", Timestamp: baseTime, Prefix: "chore"},
+			},
+		},
+	}
+
+	t.Run("markdown skips empty sections", func(t *testing.T) {
+		renderer := &changelog.MarkdownRenderer{}
+		result := renderer.Render(sections, "v1.0.0")
+
+		if strings.Contains(result, "Documentation") {
+			t.Error("expected empty 'Documentation' section to be skipped")
+		}
+		if strings.Contains(result, "Bug Fixes") {
+			t.Error("expected nil 'Bug Fixes' section to be skipped")
+		}
+		if !strings.Contains(result, "New Features") {
+			t.Error("expected 'New Features' section to be present")
+		}
+		if !strings.Contains(result, "Maintenance") {
+			t.Error("expected 'Maintenance' section to be present")
+		}
+	})
+
+	t.Run("plain text skips empty sections", func(t *testing.T) {
+		renderer := &changelog.PlainTextRenderer{}
+		result := renderer.Render(sections, "v1.0.0")
+
+		if strings.Contains(result, "DOCUMENTATION") {
+			t.Error("expected empty 'Documentation' section to be skipped")
+		}
+		if strings.Contains(result, "BUG FIXES") {
+			t.Error("expected nil 'Bug Fixes' section to be skipped")
+		}
+		if !strings.Contains(result, "NEW FEATURES") {
+			t.Error("expected 'NEW FEATURES' section to be present")
+		}
+		if !strings.Contains(result, "MAINTENANCE") {
+			t.Error("expected 'MAINTENANCE' section to be present")
+		}
+	})
+
+	t.Run("all sections empty returns only header", func(t *testing.T) {
+		emptySections := []changelog.ChangelogSection{
+			{Title: "New Features", Commits: []git.Commit{}},
+			{Title: "Bug Fixes", Commits: nil},
+		}
+
+		mdRenderer := &changelog.MarkdownRenderer{}
+		mdResult := mdRenderer.Render(emptySections, "v1.0.0")
+		if mdResult != "# Changelog v1.0.0\n" {
+			t.Errorf("expected only header for all-empty sections, got:\n%s", mdResult)
+		}
+
+		ptRenderer := &changelog.PlainTextRenderer{}
+		ptResult := ptRenderer.Render(emptySections, "v1.0.0")
+		expected := "CHANGELOG v1.0.0\n================\n"
+		if ptResult != expected {
+			t.Errorf("expected only header for all-empty sections, got:\n%s", ptResult)
+		}
+	})
+}
