@@ -1,6 +1,8 @@
 package changelog
 
 import (
+	"sort"
+
 	"github.com/lucasbrogni/ai-changelog/internal/git"
 )
 
@@ -73,4 +75,23 @@ func GroupByCategory(commits []git.Commit) []ChangelogSection {
 	}
 
 	return sections
+}
+
+func SortByDate(commits []git.Commit) []git.Commit {
+	if commits == nil {
+		return nil
+	}
+
+	if len(commits) == 0 {
+		return []git.Commit{}
+	}
+
+	sorted := make([]git.Commit, len(commits))
+	copy(sorted, commits)
+
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i].Timestamp.After(sorted[j].Timestamp)
+	})
+
+	return sorted
 }
