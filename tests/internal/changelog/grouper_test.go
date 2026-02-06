@@ -110,3 +110,58 @@ func TestGroupByCategoryEmpty(t *testing.T) {
 		t.Errorf("expected 0 sections for nil input, got %d", len(sections))
 	}
 }
+
+func TestSortByDate(t *testing.T) {
+	baseTime := time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC)
+
+	commits := []git.Commit{
+		{Hash: "oldest", Subject: "feat: oldest", Author: "Alice", Timestamp: baseTime, Prefix: "feat"},
+		{Hash: "newest", Subject: "feat: newest", Author: "Alice", Timestamp: baseTime.Add(2 * time.Hour), Prefix: "feat"},
+		{Hash: "middle", Subject: "feat: middle", Author: "Alice", Timestamp: baseTime.Add(time.Hour), Prefix: "feat"},
+	}
+
+	sorted := changelog.SortByDate(commits)
+
+	if len(sorted) != 3 {
+		t.Fatalf("expected 3 commits, got %d", len(sorted))
+	}
+
+	if sorted[0].Hash != "newest" {
+		t.Errorf("expected first commit to be 'newest', got %q", sorted[0].Hash)
+	}
+
+	if sorted[1].Hash != "middle" {
+		t.Errorf("expected second commit to be 'middle', got %q", sorted[1].Hash)
+	}
+
+	if sorted[2].Hash != "oldest" {
+		t.Errorf("expected third commit to be 'oldest', got %q", sorted[2].Hash)
+	}
+}
+
+func TestSortByDateEmpty(t *testing.T) {
+	sorted := changelog.SortByDate([]git.Commit{})
+	if len(sorted) != 0 {
+		t.Errorf("expected 0 commits, got %d", len(sorted))
+	}
+
+	sorted = changelog.SortByDate(nil)
+	if sorted != nil {
+		t.Errorf("expected nil for nil input, got %v", sorted)
+	}
+}
+
+func TestSortByDateDoesNotMutateOriginal(t *testing.T) {
+	baseTime := time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC)
+
+	commits := []git.Commit{
+		{Hash: "oldest", Timestamp: baseTime},
+		{Hash: "newest", Timestamp: baseTime.Add(time.Hour)},
+	}
+
+	changelog.SortByDate(commits)
+
+	if commits[0].Hash != "oldest" {
+		t.Errorf("original slice was mutated: expected first commit to be 'oldest', got %q", commits[0].Hash)
+	}
+}
