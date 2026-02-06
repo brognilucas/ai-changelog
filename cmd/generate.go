@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"io"
+	"os"
 
 	"github.com/lucasbrogni/ai-changelog/internal/changelog"
 	"github.com/lucasbrogni/ai-changelog/internal/git"
@@ -42,4 +43,14 @@ func RunGenerate(deps GenerateDeps, format string, since string, writer io.Write
 	output := renderer.Render(sections, "")
 	_, err = fmt.Fprint(writer, output)
 	return err
+}
+
+func WriteToFile(deps GenerateDeps, format string, since string, path string) error {
+	file, err := os.Create(path)
+	if err != nil {
+		return fmt.Errorf("failed to create output file: %w", err)
+	}
+	defer file.Close()
+
+	return RunGenerate(deps, format, since, file)
 }
