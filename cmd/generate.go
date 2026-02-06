@@ -54,3 +54,10 @@ func WriteToFile(deps GenerateDeps, format string, since string, path string) er
 
 	return RunGenerate(deps, format, since, file)
 }
+
+func CheckOllamaHealth(client ollama.Client) error {
+	if err := client.HealthCheck(); err != nil {
+		return fmt.Errorf("Ollama is not running. Start it with: ollama serve")
+	}
+	return nil
+}
