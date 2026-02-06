@@ -124,3 +124,32 @@ func TestWriteToFile(t *testing.T) {
 		t.Errorf("expected file to contain 'New Features', got:\n%s", string(content))
 	}
 }
+
+func TestOllamaStartupCheck(t *testing.T) {
+	t.Run("returns user-friendly error when ollama is down", func(t *testing.T) {
+		ollamaClient := &mockOllamaClient{healthy: false}
+
+		err := cmd.CheckOllamaHealth(ollamaClient)
+		if err == nil {
+			t.Fatal("expected error when ollama is not reachable")
+		}
+
+		errMsg := err.Error()
+		if !bytes.Contains([]byte(errMsg), []byte("Ollama is not running")) {
+			t.Errorf("expected user-friendly error message, got: %s", errMsg)
+		}
+
+		if !bytes.Contains([]byte(errMsg), []byte("ollama serve")) {
+			t.Errorf("expected error to suggest 'ollama serve', got: %s", errMsg)
+		}
+	})
+
+	t.Run("returns nil when ollama is healthy", func(t *testing.T) {
+		ollamaClient := &mockOllamaClient{healthy: true}
+
+		err := cmd.CheckOllamaHealth(ollamaClient)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
