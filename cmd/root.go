@@ -10,5 +10,7 @@ func NewRootCommand() *cobra.Command {
 		Short: "Generate changelogs from git commits using AI",
 	}
 
+	rootCmd.PersistentFlags().StringP("output", "o", "", "write changelog to file instead of stdout")
+
 	return rootCmd
 }
