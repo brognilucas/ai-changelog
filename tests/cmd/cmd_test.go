@@ -89,3 +89,20 @@ func TestFormatFlag(t *testing.T) {
 		t.Errorf("expected --format shorthand to be 'f', got %q", flag.Shorthand)
 	}
 }
+
+func TestVersionFlag(t *testing.T) {
+	rootCmd := cmd.NewRootCommand()
+
+	flag := rootCmd.PersistentFlags().Lookup("version")
+	if flag == nil {
+		t.Fatal("expected --version flag to exist")
+	}
+
+	if flag.DefValue != "" {
+		t.Errorf("expected --version default to be empty, got %q", flag.DefValue)
+	}
+
+	if flag.Shorthand != "V" {
+		t.Errorf("expected --version shorthand to be 'V', got %q", flag.Shorthand)
+	}
+}

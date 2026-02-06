@@ -18,27 +18,26 @@ func main() {
 		format, _ := c.Flags().GetString("format")
 		output, _ := c.Flags().GetString("output")
 		model, _ := c.Flags().GetString("model")
+		version, _ := c.Flags().GetString("version")
 
 		runner := &git.DefaultRunner{}
 		commitReader := git.NewCommitReader(runner)
 		ollamaClient := ollama.NewDefaultClient("http://localhost:11434")
 
 		deps := cmd.GenerateDeps{
-			CommitReader:  commitReader,
-			OllamaClient:  ollamaClient,
+			CommitReader: commitReader,
+			OllamaClient: ollamaClient,
 		}
 
 		if err := cmd.CheckOllamaHealth(ollamaClient); err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: %v (using raw commit messages)\n", err)
 		}
 
-		_ = model
-
 		if output != "" {
-			return cmd.WriteToFile(deps, format, since, output)
+			return cmd.WriteToFile(deps, format, since, model, version, output)
 		}
 
-		return cmd.RunGenerate(deps, format, since, os.Stdout)
+		return cmd.RunGenerate(deps, format, since, model, version, os.Stdout)
 	}
 
 	if err := rootCmd.Execute(); err != nil {

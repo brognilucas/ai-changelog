@@ -2,8 +2,10 @@ package cmd_test
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -21,9 +23,11 @@ func (m *mockCommitReader) GetCommits(since string) ([]git.Commit, error) {
 }
 
 type mockOllamaClient struct {
-	summaries []string
-	err       error
-	healthy   bool
+	summaries       []string
+	err             error
+	healthy         bool
+	changelogOutput string
+	changelogErr    error
 }
 
 func (m *mockOllamaClient) HealthCheck() error {
@@ -35,6 +39,10 @@ func (m *mockOllamaClient) HealthCheck() error {
 
 func (m *mockOllamaClient) SummarizeCommits(commits []git.Commit, model string) ([]string, error) {
 	return m.summaries, m.err
+}
+
+func (m *mockOllamaClient) GenerateChangelog(commits []git.Commit, model string) (string, error) {
+	return m.changelogOutput, m.changelogErr
 }
 
 var errOllamaDown = &ollamaDownError{}
@@ -63,11 +71,11 @@ func TestGenerateCommand(t *testing.T) {
 	var output bytes.Buffer
 
 	deps := cmd.GenerateDeps{
-		CommitReader: commitReader,
+		CommitReader:  commitReader,
 		OllamaClient: ollamaClient,
 	}
 
-	err := cmd.RunGenerate(deps, "markdown", "", &output)
+	err := cmd.RunGenerate(deps, "markdown", "", "tinyllama", "", &output)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -78,6 +86,7 @@ func TestGenerateCommand(t *testing.T) {
 		t.Error("expected non-empty output")
 	}
 
+	// With empty changelogOutput, LLM path fails → falls back to structured
 	if !bytes.Contains(output.Bytes(), []byte("New Features")) {
 		t.Errorf("expected output to contain 'New Features', got:\n%s", result)
 	}
@@ -100,13 +109,13 @@ func TestWriteToFile(t *testing.T) {
 
 	deps := cmd.GenerateDeps{
 		CommitReader:  commitReader,
-		OllamaClient:  ollamaClient,
+		OllamaClient: ollamaClient,
 	}
 
 	tmpDir := t.TempDir()
 	outputPath := filepath.Join(tmpDir, "CHANGELOG.md")
 
-	err := cmd.WriteToFile(deps, "markdown", "", outputPath)
+	err := cmd.WriteToFile(deps, "markdown", "", "tinyllama", "", outputPath)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -152,4 +161,142 @@ func TestOllamaStartupCheck(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 	})
+}
+
+func TestGenerateWithLLM(t *testing.T) {
+	baseTime := time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC)
+
+	commitReader := &mockCommitReader{
+		commits: []git.Commit{
+			{Hash: "abc1234def", Subject: "feat: add login", Author: "Alice", Timestamp: baseTime, Prefix: "feat"},
+			{Hash: "def4567ghi", Subject: "test: add login tests", Author: "Alice", Timestamp: baseTime.Add(time.Hour), Prefix: "test"},
+		},
+	}
+
+	llmOutput := "_This release adds user authentication._\n\n## Highlights\n\n- User login support\n"
+
+	ollamaClient := &mockOllamaClient{
+		healthy:         true,
+		changelogOutput: llmOutput,
+	}
+
+	var output bytes.Buffer
+	deps := cmd.GenerateDeps{
+		CommitReader:  commitReader,
+		OllamaClient: ollamaClient,
+	}
+
+	err := cmd.RunGenerate(deps, "markdown", "", "tinyllama", "", &output)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	result := output.String()
+
+	if !strings.Contains(result, "Highlights") {
+		t.Errorf("expected LLM output with 'Highlights', got:\n%s", result)
+	}
+
+	if strings.Contains(result, "New Features") {
+		t.Errorf("expected LLM path, but got structured output with 'New Features':\n%s", result)
+	}
+
+	if strings.Contains(result, "Testing") {
+		t.Errorf("expected LLM to omit testing section, got:\n%s", result)
+	}
+}
+
+func TestGenerateLLMFallback(t *testing.T) {
+	baseTime := time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC)
+
+	commitReader := &mockCommitReader{
+		commits: []git.Commit{
+			{Hash: "abc1234def", Subject: "feat: add login", Author: "Alice", Timestamp: baseTime, Prefix: "feat"},
+		},
+	}
+
+	ollamaClient := &mockOllamaClient{
+		healthy:      true,
+		changelogErr: fmt.Errorf("model not found"),
+	}
+
+	var output bytes.Buffer
+	deps := cmd.GenerateDeps{
+		CommitReader:  commitReader,
+		OllamaClient: ollamaClient,
+	}
+
+	err := cmd.RunGenerate(deps, "markdown", "", "tinyllama", "", &output)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	result := output.String()
+
+	if !strings.Contains(result, "New Features") {
+		t.Errorf("expected fallback to structured output with 'New Features', got:\n%s", result)
+	}
+}
+
+func TestGenerateWithVersion(t *testing.T) {
+	baseTime := time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC)
+
+	commitReader := &mockCommitReader{
+		commits: []git.Commit{
+			{Hash: "abc1234def", Subject: "feat: add login", Author: "Alice", Timestamp: baseTime, Prefix: "feat"},
+		},
+	}
+
+	llmOutput := "_Summary._\n\n## Highlights\n\n- Login\n"
+
+	ollamaClient := &mockOllamaClient{
+		healthy:         true,
+		changelogOutput: llmOutput,
+	}
+
+	var output bytes.Buffer
+	deps := cmd.GenerateDeps{
+		CommitReader:  commitReader,
+		OllamaClient: ollamaClient,
+	}
+
+	err := cmd.RunGenerate(deps, "markdown", "", "tinyllama", "v1.0.0", &output)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	result := output.String()
+	if !strings.Contains(result, "# v1.0.0") {
+		t.Errorf("expected version header in output, got:\n%s", result)
+	}
+}
+
+func TestGenerateOllamaUnhealthyFallback(t *testing.T) {
+	baseTime := time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC)
+
+	commitReader := &mockCommitReader{
+		commits: []git.Commit{
+			{Hash: "abc1234def", Subject: "feat: add login", Author: "Alice", Timestamp: baseTime, Prefix: "feat"},
+		},
+	}
+
+	ollamaClient := &mockOllamaClient{
+		healthy: false,
+	}
+
+	var output bytes.Buffer
+	deps := cmd.GenerateDeps{
+		CommitReader:  commitReader,
+		OllamaClient: ollamaClient,
+	}
+
+	err := cmd.RunGenerate(deps, "markdown", "", "tinyllama", "", &output)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	result := output.String()
+	if !strings.Contains(result, "New Features") {
+		t.Errorf("expected fallback to structured output, got:\n%s", result)
+	}
 }

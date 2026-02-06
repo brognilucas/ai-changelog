@@ -22,6 +22,10 @@ func (m *mockOllamaClient) SummarizeCommits(commits []git.Commit, model string) 
 	return nil, nil
 }
 
+func (m *mockOllamaClient) GenerateChangelog(commits []git.Commit, model string) (string, error) {
+	return "", nil
+}
+
 func TestOllamaClientInterface(t *testing.T) {
 	var client ollama.Client = &mockOllamaClient{}
 
@@ -407,4 +411,116 @@ func TestOllamaFallbackBehavior(t *testing.T) {
 			}
 		}
 	})
+}
+
+func TestBuildChangelogPrompt(t *testing.T) {
+	commits := []git.Commit{
+		{Hash: "abc1234def", Subject: "feat: add user authentication", Author: "dev"},
+		{Hash: "def4567ghi", Subject: "test: add auth tests", Author: "dev"},
+		{Hash: "ghi7890jkl", Subject: "feat: add logout", Author: "dev"},
+	}
+
+	prompt := ollama.BuildChangelogPrompt(commits)
+
+	if prompt == "" {
+		t.Error("expected non-empty prompt")
+	}
+	if !strings.Contains(prompt, "feat: add user authentication") {
+		t.Error("prompt should contain commit subjects")
+	}
+	if !strings.Contains(prompt, "Collapse") {
+		t.Error("prompt should instruct LLM to collapse related commits")
+	}
+	if !strings.Contains(prompt, "Omit") {
+		t.Error("prompt should instruct LLM to omit test/internal commits")
+	}
+	if !strings.Contains(prompt, "Highlights") {
+		t.Error("prompt should specify Highlights section")
+	}
+	if !strings.Contains(prompt, "Bug Fixes") {
+		t.Error("prompt should specify Bug Fixes section")
+	}
+}
+
+func TestBuildChangelogPromptEmpty(t *testing.T) {
+	prompt := ollama.BuildChangelogPrompt([]git.Commit{})
+	if prompt != "" {
+		t.Errorf("expected empty string for empty commits, got %q", prompt)
+	}
+}
+
+func TestGenerateChangelog(t *testing.T) {
+	expectedOutput := "_Initial release of AI changelog tool._\n\n## Highlights\n\n- Generate changelogs from git history using local LLMs\n"
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/generate" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		var req ollama.GenerateRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			t.Fatalf("failed to decode request: %v", err)
+		}
+
+		if req.Model != "tinyllama" {
+			t.Errorf("expected model tinyllama, got %s", req.Model)
+		}
+
+		response := ollama.GenerateResponse{
+			Model:    "tinyllama",
+			Response: expectedOutput,
+			Done:     true,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+	}))
+	defer server.Close()
+
+	commits := []git.Commit{
+		{Hash: "abc1234def", Subject: "feat: add login", Author: "dev", Timestamp: time.Now()},
+		{Hash: "def4567ghi", Subject: "test: add login tests", Author: "dev", Timestamp: time.Now()},
+	}
+
+	client := ollama.NewDefaultClient(server.URL)
+	result, err := client.GenerateChangelog(commits, "tinyllama")
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if result != expectedOutput {
+		t.Errorf("expected %q, got %q", expectedOutput, result)
+	}
+}
+
+func TestGenerateChangelogEmpty(t *testing.T) {
+	client := ollama.NewDefaultClient("http://localhost:11434")
+	result, err := client.GenerateChangelog([]git.Commit{}, "tinyllama")
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if result != "" {
+		t.Errorf("expected empty string for empty commits, got %q", result)
+	}
+}
+
+func TestGenerateChangelogServerError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	commits := []git.Commit{
+		{Hash: "abc1234def", Subject: "feat: add login", Author: "dev", Timestamp: time.Now()},
+	}
+
+	client := ollama.NewDefaultClient(server.URL)
+	_, err := client.GenerateChangelog(commits, "tinyllama")
+
+	if err == nil {
+		t.Error("expected error for server error, got nil")
+	}
 }

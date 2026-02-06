@@ -14,6 +14,7 @@ func NewRootCommand() *cobra.Command {
 	rootCmd.PersistentFlags().StringP("since", "s", "", "generate changelog since tag or date")
 	rootCmd.PersistentFlags().StringP("model", "m", "tinyllama", "ollama model to use for summarization")
 	rootCmd.PersistentFlags().StringP("format", "f", "markdown", "output format: markdown or plain")
+	rootCmd.PersistentFlags().StringP("version", "V", "", "version label for the changelog header (e.g., v1.2.0)")
 
 	return rootCmd
 }
