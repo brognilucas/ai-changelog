@@ -35,7 +35,42 @@ func GetDisplayName(prefix string) string {
 	return "Other"
 }
 
+var categoryOrder = []string{
+	CategoryFeat,
+	CategoryFix,
+	CategoryPerf,
+	CategoryDocs,
+	CategoryRefactor,
+	CategoryChore,
+	CategoryTest,
+	CategoryStyle,
+	CategoryOther,
+}
+
 type ChangelogSection struct {
 	Title   string
 	Commits []git.Commit
+}
+
+func GroupByCategory(commits []git.Commit) []ChangelogSection {
+	if len(commits) == 0 {
+		return []ChangelogSection{}
+	}
+
+	grouped := make(map[string][]git.Commit)
+	for _, commit := range commits {
+		grouped[commit.Prefix] = append(grouped[commit.Prefix], commit)
+	}
+
+	var sections []ChangelogSection
+	for _, category := range categoryOrder {
+		if commitList, ok := grouped[category]; ok && len(commitList) > 0 {
+			sections = append(sections, ChangelogSection{
+				Title:   GetDisplayName(category),
+				Commits: commitList,
+			})
+		}
+	}
+
+	return sections
 }
