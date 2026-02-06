@@ -8,6 +8,32 @@ import (
 	"github.com/lucasbrogni/ai-changelog/internal/git"
 )
 
+func TestCategoryDisplayNames(t *testing.T) {
+	tests := []struct {
+		prefix      string
+		displayName string
+	}{
+		{"feat", "New Features"},
+		{"fix", "Bug Fixes"},
+		{"perf", "Performance"},
+		{"docs", "Documentation"},
+		{"refactor", "Internal Changes"},
+		{"chore", "Maintenance"},
+		{"test", "Testing"},
+		{"style", "Style"},
+		{"other", "Other"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.prefix, func(t *testing.T) {
+			displayName := changelog.GetDisplayName(tc.prefix)
+			if displayName != tc.displayName {
+				t.Errorf("GetDisplayName(%q) = %q, want %q", tc.prefix, displayName, tc.displayName)
+			}
+		})
+	}
+}
+
 func TestChangelogSectionStruct(t *testing.T) {
 	commit := git.Commit{
 		Hash:      "abc123",
