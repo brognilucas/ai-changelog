@@ -21,3 +21,20 @@ func TestRootCommandExists(t *testing.T) {
 		t.Error("expected root command to have a short description")
 	}
 }
+
+func TestOutputFlag(t *testing.T) {
+	rootCmd := cmd.NewRootCommand()
+
+	flag := rootCmd.PersistentFlags().Lookup("output")
+	if flag == nil {
+		t.Fatal("expected --output flag to exist")
+	}
+
+	if flag.DefValue != "" {
+		t.Errorf("expected --output default to be empty, got %q", flag.DefValue)
+	}
+
+	if flag.Shorthand != "o" {
+		t.Errorf("expected --output shorthand to be 'o', got %q", flag.Shorthand)
+	}
+}
