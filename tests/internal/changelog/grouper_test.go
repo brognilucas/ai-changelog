@@ -165,3 +165,52 @@ func TestSortByDateDoesNotMutateOriginal(t *testing.T) {
 		t.Errorf("original slice was mutated: expected first commit to be 'oldest', got %q", commits[0].Hash)
 	}
 }
+
+func TestGroupUnknownPrefix(t *testing.T) {
+	baseTime := time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC)
+
+	commits := []git.Commit{
+		{Hash: "abc123", Subject: "feat: add login", Author: "Alice", Timestamp: baseTime, Prefix: "feat"},
+		{Hash: "def456", Subject: "random commit message", Author: "Bob", Timestamp: baseTime.Add(time.Hour), Prefix: "other"},
+		{Hash: "ghi789", Subject: "WIP: work in progress", Author: "Charlie", Timestamp: baseTime.Add(2 * time.Hour), Prefix: "other"},
+	}
+
+	sections := changelog.GroupByCategory(commits)
+
+	if len(sections) != 2 {
+		t.Fatalf("expected 2 sections, got %d", len(sections))
+	}
+
+	if sections[0].Title != "New Features" {
+		t.Errorf("expected first section to be 'New Features', got %q", sections[0].Title)
+	}
+
+	if sections[1].Title != "Other" {
+		t.Errorf("expected last section to be 'Other', got %q", sections[1].Title)
+	}
+
+	if len(sections[1].Commits) != 2 {
+		t.Errorf("expected 2 commits in 'Other' section, got %d", len(sections[1].Commits))
+	}
+}
+
+func TestGroupUnknownPrefixAppearsLast(t *testing.T) {
+	baseTime := time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC)
+
+	commits := []git.Commit{
+		{Hash: "abc123", Subject: "random commit", Author: "Alice", Timestamp: baseTime, Prefix: "other"},
+		{Hash: "def456", Subject: "fix: bug fix", Author: "Bob", Timestamp: baseTime.Add(time.Hour), Prefix: "fix"},
+		{Hash: "ghi789", Subject: "chore: cleanup", Author: "Charlie", Timestamp: baseTime.Add(2 * time.Hour), Prefix: "chore"},
+	}
+
+	sections := changelog.GroupByCategory(commits)
+
+	if len(sections) != 3 {
+		t.Fatalf("expected 3 sections, got %d", len(sections))
+	}
+
+	lastSection := sections[len(sections)-1]
+	if lastSection.Title != "Other" {
+		t.Errorf("expected 'Other' section to appear last, but got %q", lastSection.Title)
+	}
+}
