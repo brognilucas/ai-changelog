@@ -55,3 +55,20 @@ func TestSinceFlag(t *testing.T) {
 		t.Errorf("expected --since shorthand to be 's', got %q", flag.Shorthand)
 	}
 }
+
+func TestModelFlag(t *testing.T) {
+	rootCmd := cmd.NewRootCommand()
+
+	flag := rootCmd.PersistentFlags().Lookup("model")
+	if flag == nil {
+		t.Fatal("expected --model flag to exist")
+	}
+
+	if flag.DefValue != "tinyllama" {
+		t.Errorf("expected --model default to be 'tinyllama', got %q", flag.DefValue)
+	}
+
+	if flag.Shorthand != "m" {
+		t.Errorf("expected --model shorthand to be 'm', got %q", flag.Shorthand)
+	}
+}
