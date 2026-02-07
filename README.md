@@ -47,15 +47,43 @@ ollama serve
 
 ## Installation
 
+### Homebrew (recommended)
+
+If you use the project’s Homebrew tap:
+
 ```bash
-# Clone and build
+brew tap lucasbrogni/ai-changelog
+brew install ai-changelog
+```
+
+*To offer this tap:* create a GitHub repo named `homebrew-ai-changelog`, add the formula from this repo’s `Formula/ai-changelog.rb`, then tag a release (e.g. `v1.0.0`) and set the formula’s `sha256` to the release tarball’s checksum. See comments in `Formula/ai-changelog.rb` for the exact steps.
+
+### From source
+
+```bash
 git clone https://github.com/lucasbrogni/ai-changelog.git
 cd ai-changelog
 go build -o ai-changelog
+```
 
-# Or install directly
+To install the binary into `$GOPATH/bin` (requires the repo to be public or your Git credentials configured):
+
+```bash
 go install github.com/lucasbrogni/ai-changelog@latest
 ```
+
+### Publishing the Homebrew formula (maintainers)
+
+1. Create a new GitHub repo named **`homebrew-ai-changelog`** (same account as the project).
+2. In that repo, add a file `Formula/ai-changelog.rb` with the contents of `Formula/ai-changelog.rb` from this project.
+3. In this project, tag a release (e.g. `v1.0.0`) and push: `git tag v1.0.0 && git push origin v1.0.0`.
+4. Compute the tarball checksum and update the formula’s `sha256`:
+   ```bash
+   curl -sL "https://github.com/lucasbrogni/ai-changelog/archive/refs/tags/v1.0.0.tar.gz" | shasum -a 256
+   ```
+5. Update the `url` and `sha256` in `Formula/ai-changelog.rb` in the tap repo for each new release.
+
+After that, users can run `brew tap lucasbrogni/ai-changelog` and `brew install ai-changelog`.
 
 ## Usage
 
