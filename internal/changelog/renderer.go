@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/lucasbrogni/ai-changelog/internal/git"
+	"github.com/brognilucas/ai-changelog/internal/git"
 )
 
 type Renderer interface {

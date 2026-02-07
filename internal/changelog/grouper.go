@@ -3,7 +3,7 @@ package changelog
 import (
 	"sort"
 
-	"github.com/lucasbrogni/ai-changelog/internal/git"
+	"github.com/brognilucas/ai-changelog/internal/git"
 )
 
 const (

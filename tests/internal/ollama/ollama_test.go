@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lucasbrogni/ai-changelog/internal/git"
-	"github.com/lucasbrogni/ai-changelog/internal/ollama"
+	"github.com/brognilucas/ai-changelog/internal/git"
+	"github.com/brognilucas/ai-changelog/internal/ollama"
 )
 
 type mockOllamaClient struct{}

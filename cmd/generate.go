@@ -6,9 +6,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/lucasbrogni/ai-changelog/internal/changelog"
-	"github.com/lucasbrogni/ai-changelog/internal/git"
-	"github.com/lucasbrogni/ai-changelog/internal/ollama"
+	"github.com/brognilucas/ai-changelog/internal/changelog"
+	"github.com/brognilucas/ai-changelog/internal/git"
+	"github.com/brognilucas/ai-changelog/internal/ollama"
 )
 
 type CommitReader interface {

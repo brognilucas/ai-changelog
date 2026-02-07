@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lucasbrogni/ai-changelog/internal/git"
+	"github.com/brognilucas/ai-changelog/internal/git"
 )
 
 func TestCommitStructFields(t *testing.T) {

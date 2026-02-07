@@ -1,4 +1,4 @@
-module github.com/lucasbrogni/ai-changelog
+module github.com/brognilucas/ai-changelog
 
 go 1.25.6
 

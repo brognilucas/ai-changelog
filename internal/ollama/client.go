@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lucasbrogni/ai-changelog/internal/git"
+	"github.com/brognilucas/ai-changelog/internal/git"
 )
 
 type Client interface {

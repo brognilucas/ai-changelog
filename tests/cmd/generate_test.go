@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lucasbrogni/ai-changelog/cmd"
-	"github.com/lucasbrogni/ai-changelog/internal/git"
+	"github.com/brognilucas/ai-changelog/cmd"
+	"github.com/brognilucas/ai-changelog/internal/git"
 )
 
 type mockCommitReader struct {

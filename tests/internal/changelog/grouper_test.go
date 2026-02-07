@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lucasbrogni/ai-changelog/internal/changelog"
-	"github.com/lucasbrogni/ai-changelog/internal/git"
+	"github.com/brognilucas/ai-changelog/internal/changelog"
+	"github.com/brognilucas/ai-changelog/internal/git"
 )
 
 func TestCategoryDisplayNames(t *testing.T) {

@@ -3,7 +3,7 @@ package cmd_test
 import (
 	"testing"
 
-	"github.com/lucasbrogni/ai-changelog/cmd"
+	"github.com/brognilucas/ai-changelog/cmd"
 )
 
 func TestRootCommandExists(t *testing.T) {

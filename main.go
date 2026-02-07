@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/lucasbrogni/ai-changelog/cmd"
-	"github.com/lucasbrogni/ai-changelog/internal/git"
-	"github.com/lucasbrogni/ai-changelog/internal/ollama"
+	"github.com/brognilucas/ai-changelog/cmd"
+	"github.com/brognilucas/ai-changelog/internal/git"
+	"github.com/brognilucas/ai-changelog/internal/ollama"
 	"github.com/spf13/cobra"
 )
 
