@@ -12,7 +12,7 @@ class AiChangelog < Formula
   url "https://github.com/lucasbrogni/ai-changelog/archive/refs/tags/v1.0.0.tar.gz"
   # Replace with actual tarball sha256 after creating release v1.0.0:
   # curl -sL "https://github.com/lucasbrogni/ai-changelog/archive/refs/tags/v1.0.0.tar.gz" | shasum -a 256
-  sha256 "0000000000000000000000000000000000000000000000000000000000000000"
+  sha256 "0019dfc4b32d63c1392aa264aed2253c1e0c2fb09216f8e2cc269bbfb8bb49b5"
   license "MIT"
 
   depends_on "go" => :build
